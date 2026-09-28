@@ -79,6 +79,8 @@ CATS.forEach(c=>{
 const CAT_LABELS = { fire:'Fire outbreak', accident:'Road accident', abuse:'Abuse / domestic',
   kidnap:'Kidnapping', robbery:'Robbery / attack', rights:'Official misconduct', other:'Something else' };
 
+let isLive = false;
+let currentToken = '';
 document.getElementById('loadBtn').addEventListener('click', async ()=>{
   const token = document.getElementById('tokenInput').value.trim();
   const banner = document.getElementById('banner');
@@ -94,11 +96,13 @@ document.getElementById('loadBtn').addEventListener('click', async ()=>{
       loc: r.location_text || 'No location shared',
       time: new Date(r.ts).toLocaleString(),
       routed: r.routed_to.join(', ') || 'Pending',
-      actioned: r.status === 'dispatched'
+      actioned: r.status === 'acknowledged' || r.status === 'dispatched'
     }));
+    isLive = true; currentToken = token;
     banner.textContent = `Showing live reports from ${API_BASE}.`;
     render();
   }catch(err){
+    isLive = false;
     banner.textContent = `Couldn't reach the backend (${err.message}). Showing sample data instead.`;
   }
 });
@@ -120,16 +124,35 @@ function render(){
         </div>
         <div class="ractions">
           <button class="ract ${r.actioned?'done':''}" data-ref="${r.ref}">${r.actioned ? 'Acknowledged' : 'Acknowledge'}</button>
-          <button class="ract" data-ref="${r.ref}" data-esc="1">Escalate</button>
+          <button class="ract ${r.escalated?'done':''}" data-ref="${r.ref}" data-esc="1">${r.escalated ? 'Escalated' : 'Escalate'}</button>
         </div>`;
       listEl.appendChild(row);
     });
   listEl.querySelectorAll('.ract').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
+    btn.addEventListener('click', async ()=>{
       const item = DATA.find(x=>x.ref===btn.dataset.ref);
-      if(btn.dataset.esc){ alert(`Escalation flagged for ${item.ref}. Wire this button to your backend's escalate endpoint.`); return; }
-      item.actioned = !item.actioned;
-      render();
+      const action = btn.dataset.esc ? 'escalate' : 'acknowledge';
+
+      if(!isLive){
+        // Sample data has no real backend row to update -- just demo the interaction locally.
+        if(action === 'escalate'){ item.escalated = true; render(); return; }
+        item.actioned = !item.actioned; render(); return;
+      }
+
+      btn.disabled = true;
+      try{
+        const res = await fetch(`${API_BASE}/api/report/${item.ref}/action`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Token': currentToken },
+          body: JSON.stringify({ action })
+        });
+        if(!res.ok) throw new Error('request failed: ' + res.status);
+        if(action === 'escalate'){ item.escalated = true; } else { item.actioned = true; }
+        render();
+      }catch(err){
+        alert(`Couldn't update this report on the server (${err.message}). It may need reconnecting -- try Load live reports again.`);
+        btn.disabled = false;
+      }
     });
   });
 }

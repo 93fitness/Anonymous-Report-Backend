@@ -121,7 +121,7 @@ audio{max-width:100%}
   <section>
     <label class="label" for="desc">Tell us what you saw or heard</label>
     <div class="chips" id="chips"></div>
-    <textarea id="desc" required placeholder="Describe it in your own words"></textarea>
+    <textarea id="desc" placeholder="Describe it in your own words, or leave blank and record a voice note below"></textarea>
   </section>
 
   <section>
@@ -167,7 +167,7 @@ audio{max-width:100%}
     <button type="button" class="btn-secondary" id="trackBtn">Check</button>
   </div>
   <div class="track-result" id="trackResult"></div>
-  <p class="hint" style="margin-top:14px">This checks reports saved on this device only. Reports sent by SMS or WhatsApp are tracked through that channel until this app is connected to a shared backend.</p>
+  <p class="hint" style="margin-top:14px">This checks with the server directly, so it works from any device. Reports sent by SMS or WhatsApp are tracked through that channel for now.</p>
 </div>
 
 <footer>
@@ -325,26 +325,43 @@ tabTrack.addEventListener('click', ()=>{
   tabTrack.classList.add('active'); tabReport.classList.remove('active');
   trackView.style.display='block'; reportView.style.display='none';
 });
-document.getElementById('trackBtn').addEventListener('click', ()=>{
+document.getElementById('trackBtn').addEventListener('click', async ()=>{
   const code = document.getElementById('trackInput').value.trim().toUpperCase();
   const result = document.getElementById('trackResult');
   if(!code){ result.className='track-result notfound'; result.textContent='Enter a reference code first.'; return; }
+
+  try{
+    const res = await fetch(`${API_BASE}/api/report/${encodeURIComponent(code)}`);
+    if(res.ok){
+      const r = await res.json();
+      const labels = { dispatched:'Sent to responders.', pending_review:'Received, waiting on a human reviewer.', rejected_spam:'Not routed.' };
+      result.className='track-result found';
+      result.innerHTML = `<b>${r.ref}</b><br>${labels[r.status] || r.status}<br><span class="hint">Reported ${new Date(r.ts).toLocaleString()}</span>`;
+      return;
+    }
+    if(res.status === 404){
+      result.className='track-result notfound';
+      result.textContent = 'No record of this code on the server.';
+      return;
+    }
+  }catch(err){ /* fall through to local check below if the server can't be reached */ }
+
   const item = getHistory().find(x=>x.ref.toUpperCase()===code);
   if(item){
-    const label = item.status==='sent' ? 'Sent — awaiting responder acknowledgement.' : 'Saved on this device, waiting for a connection to send.';
+    const label = item.status==='sent' ? 'Saved on this device as sent, but the server is unreachable right now to confirm.' : 'Saved on this device, waiting for a connection to send.';
     result.className='track-result found';
     result.innerHTML = `<b>${item.ref}</b><br>${label}<br><span class="hint">Reported ${new Date(item.ts).toLocaleString()}</span>`;
   } else {
     result.className='track-result notfound';
-    result.textContent = 'No record of this code on this device.';
+    result.textContent = "Couldn't reach the server, and no local record of this code either.";
   }
 });
 
 const WA_NUMBER = '2348000000000';
 document.getElementById('waBtn').addEventListener('click', ()=>{
-  if(!selectedCat || !document.getElementById('desc').value.trim()){
+  if(!selectedCat || (!document.getElementById('desc').value.trim() && !voiceDataUrl)){
     statusEl.className='status queued';
-    statusEl.textContent='Choose what happened and add a short description first.';
+    statusEl.textContent='Choose what happened, and either describe it or record a voice note first.';
     return;
   }
   const c = CATS.find(x=>x.id===selectedCat);
@@ -398,9 +415,9 @@ form.addEventListener('submit', async (e)=>{
   e.preventDefault();
   if(document.querySelector('.honey').value) return;
 
-  if(!selectedCat || !document.getElementById('desc').value.trim()){
+  if(!selectedCat || (!document.getElementById('desc').value.trim() && !voiceDataUrl)){
     statusEl.className = 'status queued';
-    statusEl.textContent = 'Choose what happened and add a short description first.';
+    statusEl.textContent = 'Choose what happened, and either describe it or record a voice note first.';
     return;
   }
 

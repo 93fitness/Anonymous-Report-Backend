@@ -93,9 +93,9 @@ def score_urgency(text, tags):
     return "low"
 
 
-def score_spam(description, device_fp):
+def score_spam(description, device_fp, has_audio=False):
     score = 0.0
-    if not description or len(description.strip()) < 5:
+    if not has_audio and (not description or len(description.strip()) < 5):
         score += 0.6
     now = time.time()
     hist = [t for t in RATE_LIMIT.get(device_fp, []) if now - t < RATE_LIMIT_WINDOW]
@@ -138,7 +138,7 @@ def handle_incoming_report(payload):
     con = get_conn()
     cur = con.cursor()
     urgency = score_urgency(description, tags)
-    spam = score_spam(description, device_fp)
+    spam = score_spam(description, device_fp, has_audio=bool(payload.get("audio")))
     dup_count = find_duplicates(con, category, lat, lng)
     if dup_count > 0:
         spam = max(0, spam - 0.2)  # corroborated reports are less likely spam
@@ -261,6 +261,24 @@ class Handler(BaseHTTPRequestHandler):
             payload = json.loads(raw or b"{}")
         except json.JSONDecodeError:
             return self._json(400, {"error": "invalid json"})
+
+        if self.path.startswith("/api/report/") and self.path.endswith("/action"):
+            if self.headers.get("X-Token") != DASH_TOKEN:
+                return self._json(401, {"error": "unauthorized"})
+            ref = self.path.split("/")[3]
+            action = payload.get("action")
+            new_status = {"acknowledge": "acknowledged", "escalate": "escalated"}.get(action)
+            if not new_status:
+                return self._json(400, {"error": "action must be 'acknowledge' or 'escalate'"})
+            con = get_conn()
+            cur = con.cursor()
+            cur.execute(f"UPDATE reports SET status={PH} WHERE ref={PH}", (new_status, ref))
+            updated = cur.rowcount
+            con.commit()
+            con.close()
+            if not updated:
+                return self._json(404, {"error": "not found"})
+            return self._json(200, {"ref": ref, "status": new_status})
 
         if self.path == "/api/report":
             body, code = handle_incoming_report(payload)
