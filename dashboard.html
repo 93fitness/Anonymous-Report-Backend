@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Triage dashboard</title>
+<style>
+:root{
+  --ink:#14212B; --paper:#F2F5F7; --line:#DBE2E6; --card:#FFFFFF; --muted:#5B6A73;
+  box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+:root:not([data-theme="light"]){ @media (prefers-color-scheme: dark){
+  --ink:#E9EEF0; --paper:#0F1A1F; --line:#2A363C; --card:#16232A; --muted:#93A2AA;
+}}
+:root[data-theme="dark"]{ --ink:#E9EEF0; --paper:#0F1A1F; --line:#2A363C; --card:#16232A; --muted:#93A2AA; }
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.5;padding:24px 20px 60px;max-width:900px;margin-inline:auto}
+h1{font-size:22px;font-weight:600;margin:0 0 4px}
+.sub{color:var(--muted);font-size:14px;margin:0 0 8px}
+.banner{background:var(--card);border:1px solid var(--line);border-left:4px solid #B98900;border-radius:8px;padding:10px 14px;font-size:13px;color:var(--muted);margin-bottom:22px}
+.filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px}
+.filter{border:1px solid var(--line);background:var(--card);color:var(--muted);padding:7px 13px;border-radius:999px;font-size:13px;cursor:pointer;font-family:inherit}
+.filter.active{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.list{display:flex;flex-direction:column;gap:10px}
+.row{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px;display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:start}
+.urg{width:8px;border-radius:6px;align-self:stretch}
+.urg.high{background:#D4392E}.urg.medium{background:#C98A1E}.urg.low{background:#5B6A73}
+.rtop{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.rref{font-weight:600;font-size:14px}
+.rcat{font-size:12px;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:2px 9px}
+.rdesc{font-size:13.5px;margin-top:6px;color:var(--ink)}
+.rmeta{font-size:12px;color:var(--muted);margin-top:6px}
+.ractions{display:flex;flex-direction:column;gap:6px}
+.ract{border:1px solid var(--line);background:var(--paper);color:var(--ink);padding:7px 12px;border-radius:6px;font-size:12.5px;cursor:pointer;font-family:inherit;white-space:nowrap}
+.ract.done{background:#1F8A70;color:#fff;border-color:#1F8A70}
+.row.actioned{opacity:.55}
+</style>
+</head>
+<body>
+<h1>Incoming reports</h1>
+<p class="sub">Demo view with sample data — connect this to your real triage API to show live reports.</p>
+<div class="banner">This is a working mockup, not a live feed. Point the fetch call at your backend's report-list endpoint to replace the sample array below.</div>
+
+<div class="banner" id="banner">This is a working mockup, not a live feed. Point the fetch call at your backend's report-list endpoint to replace the sample array below.</div>
+
+<div style="display:flex;gap:10px;margin-bottom:14px">
+  <input type="text" id="tokenInput" placeholder="Dashboard token" style="flex:1;padding:9px 12px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);font-size:13px">
+  <button class="filter" id="loadBtn">Load live reports</button>
+</div>
+
+<div class="filters" id="filters"></div>
+<div class="list" id="list"></div>
+
+<script>
+// Point this at your deployed backend once it's live (see backend/README.md).
+const API_BASE = "";
+
+const SAMPLE = [
+  { ref:'RPT-9K3XQ2', category:'Abuse / domestic', urgency:'high', desc:"Man shouting and hitting someone upstairs, sounds ongoing, woman crying.", loc:'Eti-Osa, Lagos', time:'2 min ago', routed:'Lagos DSVRT + Mirabel Centre', actioned:false },
+  { ref:'RPT-7F2LM9', category:'Fire outbreak', urgency:'high', desc:"Smoke visible from market stalls, spreading toward the food section.", loc:'Mushin, Lagos', time:'6 min ago', routed:'Lagos State Fire Service', actioned:false },
+  { ref:'RPT-4D8PQ1', category:'Robbery / attack', urgency:'medium', desc:"Two men on a motorbike snatched a bag near the bus stop, fled toward the bridge.", loc:'Yaba, Lagos', time:'14 min ago', routed:'Nigeria Police (Yaba div.)', actioned:true },
+  { ref:'RPT-2C5RT8', category:'Official misconduct', urgency:'medium', desc:"Officer allegedly demanding payment at a checkpoint, refusing to let vehicles pass.", loc:'Ikorodu Rd, Lagos', time:'22 min ago', routed:'Human rights desk', actioned:false },
+  { ref:'RPT-1A9WZ3', category:'Something else', urgency:'low', desc:"Group of unfamiliar men repeatedly parked outside a house at night for a week.", loc:'Ajah, Lagos', time:'1 hr ago', routed:'Pending human review', actioned:false }
+];
+
+let DATA = SAMPLE;
+const CATS = ['All','Abuse / domestic','Fire outbreak','Robbery / attack','Official misconduct','Something else'];
+let activeFilter = 'All';
+
+const filtersEl = document.getElementById('filters');
+CATS.forEach(c=>{
+  const b = document.createElement('button');
+  b.className = 'filter' + (c==='All' ? ' active' : '');
+  b.textContent = c;
+  b.addEventListener('click', ()=>{ activeFilter = c; render(); [...filtersEl.children].forEach(el=>el.classList.toggle('active', el===b)); });
+  filtersEl.appendChild(b);
+});
+
+const CAT_LABELS = { fire:'Fire outbreak', accident:'Road accident', abuse:'Abuse / domestic',
+  kidnap:'Kidnapping', robbery:'Robbery / attack', rights:'Official misconduct', other:'Something else' };
+
+document.getElementById('loadBtn').addEventListener('click', async ()=>{
+  const token = document.getElementById('tokenInput').value.trim();
+  const banner = document.getElementById('banner');
+  try{
+    const res = await fetch(`${API_BASE}/api/reports`, { headers: { 'X-Token': token } });
+    if(!res.ok) throw new Error('request failed: ' + res.status);
+    const rows = await res.json();
+    DATA = rows.map(r => ({
+      ref: r.ref,
+      category: CAT_LABELS[r.category] || r.category,
+      urgency: r.urgency,
+      desc: r.description,
+      loc: r.location_text || 'No location shared',
+      time: new Date(r.ts).toLocaleString(),
+      routed: r.routed_to.join(', ') || 'Pending',
+      actioned: r.status === 'dispatched'
+    }));
+    banner.textContent = `Showing live reports from ${API_BASE}.`;
+    render();
+  }catch(err){
+    banner.textContent = `Couldn't reach the backend (${err.message}). Showing sample data instead.`;
+  }
+});
+
+function render(){
+  const listEl = document.getElementById('list');
+  listEl.innerHTML = '';
+  DATA
+    .filter(r => activeFilter==='All' || r.category===activeFilter)
+    .forEach(r=>{
+      const row = document.createElement('div');
+      row.className = 'row' + (r.actioned ? ' actioned' : '');
+      row.innerHTML = `
+        <div class="urg ${r.urgency}"></div>
+        <div>
+          <div class="rtop"><span class="rref">${r.ref}</span><span class="rcat">${r.category}</span></div>
+          <div class="rdesc">${r.desc}</div>
+          <div class="rmeta">${r.loc} · ${r.time} · routed to ${r.routed}</div>
+        </div>
+        <div class="ractions">
+          <button class="ract ${r.actioned?'done':''}" data-ref="${r.ref}">${r.actioned ? 'Acknowledged' : 'Acknowledge'}</button>
+          <button class="ract" data-ref="${r.ref}" data-esc="1">Escalate</button>
+        </div>`;
+      listEl.appendChild(row);
+    });
+  listEl.querySelectorAll('.ract').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const item = DATA.find(x=>x.ref===btn.dataset.ref);
+      if(btn.dataset.esc){ alert(`Escalation flagged for ${item.ref}. Wire this button to your backend's escalate endpoint.`); return; }
+      item.actioned = !item.actioned;
+      render();
+    });
+  });
+}
+render();
+</script>
+</body>
+</html>

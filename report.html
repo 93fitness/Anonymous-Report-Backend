@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Report an incident</title>
+<style>
+:root{
+  --ink:#14212B; --paper:#F2F5F7; --line:#DBE2E6; --card:#FFFFFF; --muted:#5B6A73;
+  --calm:#1F8A70; --calm-d:#156653; --accent:#1F8A70; --accent-tint:rgba(31,138,112,.10);
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+:root:not([data-theme="light"]){
+  @media (prefers-color-scheme: dark){
+    --ink:#E9EEF0; --paper:#0F1A1F; --line:#2A363C; --card:#16232A; --muted:#93A2AA;
+  }
+}
+:root[data-theme="dark"]{ --ink:#E9EEF0; --paper:#0F1A1F; --line:#2A363C; --card:#16232A; --muted:#93A2AA; }
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{
+  margin:0; background:var(--paper); color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  line-height:1.5; max-width:580px; margin-inline:auto; padding:0 20px 60px;
+}
+.topbar{height:5px; background:var(--accent); margin:0 -20px 24px; transition:background .3s}
+h1{font-size:23px;font-weight:600;margin:0 0 4px}
+.sub{color:var(--muted);font-size:14px;margin:0 0 26px;max-width:46ch}
+section{margin-bottom:26px}
+.label{font-size:15px;font-weight:600;margin:0 0 4px;display:block}
+.hint{font-size:13px;color:var(--muted);margin:0 0 10px}
+select,textarea,input[type=text]{
+  width:100%;padding:13px 14px;border:1px solid var(--line);border-radius:8px;
+  font-size:16px;background:var(--card);color:var(--ink);font-family:inherit;
+}
+select:focus,textarea:focus,input:focus{outline:2px solid var(--accent);outline-offset:1px}
+textarea{min-height:88px;resize:vertical}
+
+.cat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.cat-card{
+  border:1.5px solid var(--line); border-radius:10px; padding:12px 12px;
+  background:var(--card); text-align:left; cursor:pointer; font-family:inherit;
+}
+.cat-card .name{font-size:14.5px;font-weight:600;display:block}
+.cat-card .hint2{font-size:12px;color:var(--muted);display:block;margin-top:2px}
+.cat-card.selected{border-color:var(--accent); background:var(--accent-tint)}
+.cat-card.selected .name{color:var(--accent)}
+
+.route-preview{
+  border:1px solid var(--line); border-left:4px solid var(--accent); background:var(--card);
+  border-radius:8px; padding:12px 14px; font-size:13.5px; color:var(--muted); margin-top:12px;
+  display:none;
+}
+.route-preview b{color:var(--ink);font-weight:600}
+
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 4px}
+.chip{
+  border:1.5px solid var(--line); background:var(--card); color:var(--ink);
+  padding:7px 13px; border-radius:999px; font-size:13px; cursor:pointer; font-family:inherit;
+}
+.chip.on{background:var(--accent); border-color:var(--accent); color:#fff}
+
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.btn-secondary{
+  border:1px solid var(--line);background:var(--card);color:var(--ink);
+  padding:11px 16px;border-radius:8px;font-size:14px;cursor:pointer;
+}
+.file-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.thumb{width:56px;height:56px;object-fit:cover;border-radius:8px;border:1px solid var(--line)}
+.honey{position:absolute;left:-9999px}
+
+button.submit{
+  width:100%;padding:16px;border:none;border-radius:8px;background:var(--accent);
+  color:#fff;font-size:16px;font-weight:600;cursor:pointer;margin-top:6px;transition:background .3s;
+}
+button.submit:disabled{opacity:.6;cursor:default}
+.status{margin-top:16px;padding:14px 16px;border-radius:8px;font-size:14px;display:none}
+.status.queued,.status.sent{display:block;background:var(--accent-tint);border:1px solid var(--accent);color:var(--ink)}
+.ref{font-weight:600;color:var(--accent)}
+footer{margin-top:34px;font-size:12.5px;color:var(--muted);border-top:1px solid var(--line);padding-top:16px}
+footer b{color:var(--ink)}
+
+.tabs{display:flex;gap:8px;margin:16px 0 24px}
+.tab{flex:1;padding:10px;border:1px solid var(--line);background:var(--card);color:var(--muted);border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit}
+.tab.active{background:var(--accent);border-color:var(--accent);color:#fff}
+
+.btn-whatsapp{width:100%;padding:13px;border:1.5px solid #25D366;background:transparent;color:#128C4A;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;margin-top:10px;font-family:inherit}
+
+.voice-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.btn-rec{border:1.5px solid var(--line);background:var(--card);color:var(--ink);padding:11px 16px;border-radius:8px;font-size:14px;cursor:pointer;font-family:inherit}
+.btn-rec.recording{border-color:#D4392E;color:#D4392E}
+audio{max-width:100%}
+
+.track-box{display:flex;gap:10px}
+.track-result{margin-top:16px;padding:14px 16px;border-radius:8px;font-size:14px;border:1px solid var(--line);background:var(--card);display:none}
+.track-result.found{display:block;border-color:var(--calm)}
+.track-result.notfound{display:block}
+</style>
+</head>
+<body>
+<div class="topbar" id="topbar"></div>
+<h1>Report what's happening</h1>
+<p class="sub">No account, no phone number, no name. If sending fails on a weak connection, your report is saved and retried automatically.</p>
+
+<div class="tabs">
+  <button type="button" class="tab active" id="tabReport">Report</button>
+  <button type="button" class="tab" id="tabTrack">Track status</button>
+</div>
+
+<div id="reportView">
+<form id="f">
+  <input class="honey" type="text" name="hp" tabindex="-1" autocomplete="off">
+
+  <section>
+    <label class="label">What's happening</label>
+    <div class="cat-grid" id="catGrid"></div>
+    <div class="route-preview" id="routePreview"></div>
+  </section>
+
+  <section>
+    <label class="label" for="desc">Tell us what you saw or heard</label>
+    <div class="chips" id="chips"></div>
+    <textarea id="desc" required placeholder="Describe it in your own words"></textarea>
+  </section>
+
+  <section>
+    <label class="label">Where (optional)</label>
+    <p class="hint">You choose whether to share your location.</p>
+    <div class="grid2">
+      <button type="button" class="btn-secondary" id="locBtn">Use my location</button>
+      <input type="text" id="locText" placeholder="or type an area / street">
+    </div>
+    <p class="hint" id="locStatus"></p>
+  </section>
+
+  <section>
+    <label class="label">Add a photo (optional)</label>
+    <p class="hint">Compressed automatically so it uploads fast, even on 3G.</p>
+    <div class="file-row">
+      <button type="button" class="btn-secondary" id="photoBtn">Attach photo</button>
+      <input type="file" id="photoInput" accept="image/*" capture="environment" style="display:none">
+      <img id="thumb" class="thumb" style="display:none">
+      <span class="hint" id="photoInfo"></span>
+    </div>
+  </section>
+
+  <section>
+    <label class="label">Record a voice note (optional)</label>
+    <p class="hint">Useful when typing is difficult. Up to 60 seconds.</p>
+    <div class="voice-row">
+      <button type="button" class="btn-rec" id="recBtn">Start recording</button>
+      <span class="hint" id="recInfo"></span>
+    </div>
+    <audio id="recPlayer" controls style="display:none;margin-top:10px"></audio>
+  </section>
+
+  <button type="submit" class="submit" id="submitBtn">Send report anonymously</button>
+  <button type="button" class="btn-whatsapp" id="waBtn">Send via WhatsApp instead</button>
+  <div class="status" id="status"></div>
+</form>
+</div>
+
+<div id="trackView" style="display:none">
+  <div class="track-box">
+    <input type="text" id="trackInput" placeholder="Enter your reference code, e.g. RPT-9K3XQ2">
+    <button type="button" class="btn-secondary" id="trackBtn">Check</button>
+  </div>
+  <div class="track-result" id="trackResult"></div>
+  <p class="hint" style="margin-top:14px">This checks reports saved on this device only. Reports sent by SMS or WhatsApp are tracked through that channel until this app is connected to a shared backend.</p>
+</div>
+
+<footer>
+  No data at all? Text your report to <b>32123</b> (standard SMS rates apply) — same system, no app needed.<br><br>
+  Reports are routed automatically. Reports about abuse by police or officials are never sent to the police.
+</footer>
+
+<script>
+// Point this at your deployed backend once it's live (see backend/README.md).
+const API_BASE = "";
+
+const CATS = [
+  { id:'fire',    name:'Fire outbreak',        hint:'Burning, smoke',        color:'230,98,44',   route:'Fire Service and state emergency management, dispatched immediately.',
+    tags:['Still burning','Spreading fast','People trapped'] },
+  { id:'accident',name:'Road accident',        hint:'Crash, injury',         color:'44,123,229',  route:'Ambulance / emergency response, dispatched immediately.',
+    tags:['Someone injured','Blocking road','Vehicle overturned'] },
+  { id:'abuse',   name:'Abuse / domestic',     hint:'Ongoing harm at home',  color:'194,59,114',  route:'State domestic-violence response team and a legal-aid partner — kept separate from routine police dispatch.',
+    tags:['Happening right now','Child involved','Weapon involved'] },
+  { id:'kidnap',  name:'Kidnapping',           hint:'Person taken',          color:'110,66,193',  route:'Police (nearest division), dispatched immediately as high priority.',
+    tags:['Just happened','Vehicle description known','Multiple people taken'] },
+  { id:'robbery', name:'Robbery / attack',     hint:'Armed or violent',      color:'196,86,42',   route:'Police (nearest division), dispatched immediately as high priority.',
+    tags:['Weapon involved','Suspects fled','Ongoing right now'] },
+  { id:'rights',  name:'Official misconduct',  hint:'By police or officials',color:'31,138,112',  route:'Independent human-rights desk — not sent to police.',
+    tags:['Uniformed officer involved','Physical force used','Witnessed by others'] },
+  { id:'other',   name:'Something else',       hint:'Unusual, unsafe',       color:'91,102,115',  route:'Reviewed by a human triage officer before being routed.',
+    tags:['Ongoing right now','Multiple people affected'] }
+];
+
+const catGrid = document.getElementById('catGrid');
+const routePreview = document.getElementById('routePreview');
+const chipsEl = document.getElementById('chips');
+const topbar = document.getElementById('topbar');
+let selectedCat = null;
+const selectedTags = new Set();
+
+CATS.forEach(c=>{
+  const card = document.createElement('button');
+  card.type = 'button'; card.className = 'cat-card'; card.dataset.id = c.id;
+  card.innerHTML = `<span class="name">${c.name}</span><span class="hint2">${c.hint}</span>`;
+  card.addEventListener('click', ()=> selectCategory(c.id));
+  catGrid.appendChild(card);
+});
+
+function selectCategory(id){
+  selectedCat = id;
+  selectedTags.clear();
+  const c = CATS.find(x=>x.id===id);
+  document.documentElement.style.setProperty('--accent', `rgb(${c.color})`);
+  document.documentElement.style.setProperty('--accent-tint', `rgba(${c.color},.10)`);
+  topbar.style.background = `rgb(${c.color})`;
+  [...catGrid.children].forEach(el=> el.classList.toggle('selected', el.dataset.id===id));
+  routePreview.style.display = 'block';
+  routePreview.innerHTML = `<b>Goes to:</b> ${c.route}`;
+  chipsEl.innerHTML = '';
+  c.tags.forEach(t=>{
+    const chip = document.createElement('button');
+    chip.type='button'; chip.className='chip'; chip.textContent=t;
+    chip.addEventListener('click', ()=>{
+      chip.classList.toggle('on');
+      chip.classList.contains('on') ? selectedTags.add(t) : selectedTags.delete(t);
+    });
+    chipsEl.appendChild(chip);
+  });
+}
+
+let coords = null;
+document.getElementById('locBtn').addEventListener('click', ()=>{
+  const s = document.getElementById('locStatus');
+  if(!navigator.geolocation){ s.textContent = "Location isn't available on this device."; return; }
+  s.textContent = "Getting location…";
+  navigator.geolocation.getCurrentPosition(
+    p => { coords = [p.coords.latitude, p.coords.longitude]; s.textContent = "Location added."; },
+    () => { s.textContent = "Couldn't get location — you can type an area instead."; },
+    { timeout: 8000 }
+  );
+});
+
+let photoDataUrl = null;
+document.getElementById('photoBtn').addEventListener('click', ()=> document.getElementById('photoInput').click());
+document.getElementById('photoInput').addEventListener('change', (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  const img = new Image();
+  const reader = new FileReader();
+  reader.onload = ev => { img.src = ev.target.result; };
+  img.onload = () => {
+    const maxW = 800;
+    const scale = Math.min(1, maxW / img.width);
+    const canvas = document.createElement('canvas');
+    canvas.width = img.width * scale;
+    canvas.height = img.height * scale;
+    canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+    photoDataUrl = canvas.toDataURL('image/jpeg', 0.6);
+    const thumb = document.getElementById('thumb');
+    thumb.src = photoDataUrl; thumb.style.display = 'block';
+    document.getElementById('photoInfo').textContent =
+      Math.round(photoDataUrl.length/1024) + " KB, ready to send";
+  };
+  reader.readAsDataURL(file);
+});
+
+function genRef(){
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let s = 'RPT-';
+  for(let i=0;i<6;i++) s += chars[Math.floor(Math.random()*chars.length)];
+  return s;
+}
+
+const QUEUE_KEY = 'report_queue_v2';
+function getQueue(){ try{ return JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]'); }catch{ return []; } }
+function saveQueue(q){ try{ localStorage.setItem(QUEUE_KEY, JSON.stringify(q)); }catch{} }
+
+async function trySend(report){
+  const res = await fetch(`${API_BASE}/api/report`, {
+    method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(report)
+  });
+  if(!res.ok) throw new Error('send failed');
+  return res.json();
+}
+
+const HISTORY_KEY = 'report_history_v1';
+function getHistory(){ try{ return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); }catch{ return []; } }
+function saveHistory(h){ try{ localStorage.setItem(HISTORY_KEY, JSON.stringify(h)); }catch{} }
+function addHistory(ref, category, status){
+  const h = getHistory(); h.unshift({ ref, category, status, ts: new Date().toISOString() });
+  saveHistory(h.slice(0,50));
+}
+function updateHistoryStatus(ref, status){
+  const h = getHistory(); const item = h.find(x=>x.ref===ref);
+  if(item){ item.status = status; saveHistory(h); }
+}
+
+async function processQueue(){
+  const q = getQueue();
+  if(!q.length) return;
+  const remaining = [];
+  for(const item of q){
+    try{ await trySend(item); updateHistoryStatus(item.ref, 'sent'); }
+    catch{ remaining.push(item); }
+  }
+  saveQueue(remaining);
+}
+window.addEventListener('online', processQueue);
+processQueue();
+
+const tabReport = document.getElementById('tabReport');
+const tabTrack = document.getElementById('tabTrack');
+const reportView = document.getElementById('reportView');
+const trackView = document.getElementById('trackView');
+tabReport.addEventListener('click', ()=>{
+  tabReport.classList.add('active'); tabTrack.classList.remove('active');
+  reportView.style.display='block'; trackView.style.display='none';
+});
+tabTrack.addEventListener('click', ()=>{
+  tabTrack.classList.add('active'); tabReport.classList.remove('active');
+  trackView.style.display='block'; reportView.style.display='none';
+});
+document.getElementById('trackBtn').addEventListener('click', ()=>{
+  const code = document.getElementById('trackInput').value.trim().toUpperCase();
+  const result = document.getElementById('trackResult');
+  if(!code){ result.className='track-result notfound'; result.textContent='Enter a reference code first.'; return; }
+  const item = getHistory().find(x=>x.ref.toUpperCase()===code);
+  if(item){
+    const label = item.status==='sent' ? 'Sent — awaiting responder acknowledgement.' : 'Saved on this device, waiting for a connection to send.';
+    result.className='track-result found';
+    result.innerHTML = `<b>${item.ref}</b><br>${label}<br><span class="hint">Reported ${new Date(item.ts).toLocaleString()}</span>`;
+  } else {
+    result.className='track-result notfound';
+    result.textContent = 'No record of this code on this device.';
+  }
+});
+
+const WA_NUMBER = '2348000000000';
+document.getElementById('waBtn').addEventListener('click', ()=>{
+  if(!selectedCat || !document.getElementById('desc').value.trim()){
+    statusEl.className='status queued';
+    statusEl.textContent='Choose what happened and add a short description first.';
+    return;
+  }
+  const c = CATS.find(x=>x.id===selectedCat);
+  const ref = genRef();
+  const desc = document.getElementById('desc').value.trim();
+  const loc = document.getElementById('locText').value.trim();
+  const tagsText = [...selectedTags].join(', ');
+  let msg = `Incident report (${c.name}) Ref:${ref}\n${desc}`;
+  if(tagsText) msg += `\nTags: ${tagsText}`;
+  if(loc) msg += `\nLocation: ${loc}`;
+  addHistory(ref, selectedCat, 'sent');
+  window.open(`https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(msg)}`, '_blank');
+});
+
+let mediaRecorder=null, audioChunks=[], recTimeout=null, voiceDataUrl=null;
+const recBtn = document.getElementById('recBtn');
+const recInfo = document.getElementById('recInfo');
+const recPlayer = document.getElementById('recPlayer');
+recBtn.addEventListener('click', async ()=>{
+  if(mediaRecorder && mediaRecorder.state==='recording'){ mediaRecorder.stop(); return; }
+  try{
+    const stream = await navigator.mediaDevices.getUserMedia({ audio:true });
+    audioChunks = [];
+    mediaRecorder = new MediaRecorder(stream);
+    mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+    mediaRecorder.onstop = ()=>{
+      const blob = new Blob(audioChunks, { type:'audio/webm' });
+      const reader = new FileReader();
+      reader.onload = ()=>{
+        voiceDataUrl = reader.result;
+        recPlayer.src = voiceDataUrl; recPlayer.style.display='block';
+        recInfo.textContent = Math.round(voiceDataUrl.length/1024) + ' KB, ready to send';
+      };
+      reader.readAsDataURL(blob);
+      stream.getTracks().forEach(t=>t.stop());
+      recBtn.classList.remove('recording'); recBtn.textContent='Start recording';
+      clearTimeout(recTimeout);
+    };
+    mediaRecorder.start();
+    recBtn.classList.add('recording'); recBtn.textContent='Stop recording';
+    recInfo.textContent='Recording…';
+    recTimeout = setTimeout(()=>{ if(mediaRecorder && mediaRecorder.state==='recording') mediaRecorder.stop(); }, 60000);
+  }catch(err){
+    recInfo.textContent = 'Microphone not available or permission denied.';
+  }
+});
+
+const form = document.getElementById('f');
+const statusEl = document.getElementById('status');
+form.addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  if(document.querySelector('.honey').value) return;
+
+  if(!selectedCat || !document.getElementById('desc').value.trim()){
+    statusEl.className = 'status queued';
+    statusEl.textContent = 'Choose what happened and add a short description first.';
+    return;
+  }
+
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true; btn.textContent = 'Sending…';
+
+  const ref = genRef();
+  const report = {
+    ref, ts: new Date().toISOString(),
+    category: selectedCat,
+    tags: [...selectedTags],
+    description: document.getElementById('desc').value.trim(),
+    location_text: document.getElementById('locText').value.trim() || null,
+    coords: coords,
+    photo: photoDataUrl,
+    audio: voiceDataUrl
+  };
+
+  try{
+    await trySend(report);
+    statusEl.className = 'status sent';
+    statusEl.innerHTML = `Sent. Your reference is <span class="ref">${ref}</span> — save it to check status later.`;
+    addHistory(ref, selectedCat, 'sent');
+  }catch(err){
+    const q = getQueue(); q.push(report); saveQueue(q);
+    statusEl.className = 'status queued';
+    statusEl.innerHTML = `Saved and queued — will send automatically once you're online. Reference <span class="ref">${ref}</span>.`;
+    addHistory(ref, selectedCat, 'queued');
+  }
+  btn.disabled = false; btn.textContent = 'Send another report';
+  form.reset(); photoDataUrl = null; coords = null; selectedCat = null; selectedTags.clear(); voiceDataUrl = null;
+  document.getElementById('thumb').style.display='none';
+  document.getElementById('photoInfo').textContent='';
+  recPlayer.style.display='none'; recInfo.textContent='';
+  routePreview.style.display='none'; chipsEl.innerHTML='';
+  [...catGrid.children].forEach(el=> el.classList.remove('selected'));
+  document.documentElement.style.setProperty('--accent', 'rgb(31,138,112)');
+  document.documentElement.style.setProperty('--accent-tint', 'rgba(31,138,112,.10)');
+  topbar.style.background = 'rgb(31,138,112)';
+});
+</script>
+</body>
+</html>

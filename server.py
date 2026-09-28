@@ -203,6 +203,21 @@ class Handler(BaseHTTPRequestHandler):
                 out.append(item)
             return self._json(200, out)
 
+        if self.path in ("/", "/index.html", "/dashboard"):
+            name = "dashboard.html" if self.path == "/dashboard" else "report.html"
+            try:
+                here = os.path.dirname(os.path.abspath(__file__))
+                with open(os.path.join(here, name), "rb") as f:
+                    data = f.read()
+            except FileNotFoundError:
+                return self._json(404, {"error": "page missing"})
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+            return
+
         self._json(404, {"error": "not found"})
 
     def do_POST(self):
