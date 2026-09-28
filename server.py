@@ -8,17 +8,28 @@ Deploy:   works on any host that can run `python3 server.py` (Render, Railway,
 
 import json, sqlite3, random, string, time, os, re
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 DB_PATH = os.environ.get("DB_PATH", "reports.db")
+DATABASE_URL = os.environ.get("DATABASE_URL")  # set this to switch to permanent Postgres storage
+USE_PG = bool(DATABASE_URL)
+PH = "%s" if USE_PG else "?"  # SQL placeholder style differs between the two drivers
+
 DASH_TOKEN = os.environ.get("DASH_TOKEN", "demo-token-change-me")
 ROUTING_PATH = os.environ.get("ROUTING_PATH", "routing_table.json")
 PORT = int(os.environ.get("PORT", 8080))
 
+SCHEMA = """CREATE TABLE IF NOT EXISTS reports(
+    ref TEXT PRIMARY KEY, ts TEXT, category TEXT, description TEXT,
+    tags TEXT, location_text TEXT, lat REAL, lng REAL,
+    urgency TEXT, spam_score REAL, status TEXT, routed_to TEXT,
+    device_fp TEXT, has_photo INTEGER, has_audio INTEGER
+)"""
+
 URGENCY_KEYWORDS = {
     "high": ["now", "right now", "ongoing", "trapped", "weapon", "gun", "knife",
-              "bleeding", "unconscious", "fire", "burning", "child", "help me"],
-    "medium": ["injured", "shouting", "fighting", "blocked", "stuck", "crying"],
+              "bleeding", "unconscious", "fire", "burning", "smoke", "child", "help me"],
+    "medium": ["injured", "shouting", "fighting", "blocked", "stuck", "crying", "spreading"],
 }
 NIGHT_HOURS = set(range(22, 24)) | set(range(0, 6))
 
@@ -27,20 +38,33 @@ RATE_LIMIT_WINDOW = 600   # seconds
 RATE_LIMIT_MAX = 6        # reports per window
 
 
+def get_conn():
+    """One connection function used everywhere -- this is the only place that
+    knows whether we're talking to Postgres (permanent) or SQLite (local/demo)."""
+    if USE_PG:
+        try:
+            import psycopg2
+        except ImportError:
+            raise RuntimeError(
+                "DATABASE_URL is set but psycopg2 isn't installed. "
+                "Add 'psycopg2-binary' to requirements.txt and set the Render "
+                "build command to: pip install -r requirements.txt"
+            )
+        return psycopg2.connect(DATABASE_URL, sslmode="require")
+    return sqlite3.connect(DB_PATH)
+
+
 def load_routing():
     with open(ROUTING_PATH) as f:
         return json.load(f)
 
 
 def init_db():
-    con = sqlite3.connect(DB_PATH)
-    con.execute("""CREATE TABLE IF NOT EXISTS reports(
-        ref TEXT PRIMARY KEY, ts TEXT, category TEXT, description TEXT,
-        tags TEXT, location_text TEXT, lat REAL, lng REAL,
-        urgency TEXT, spam_score REAL, status TEXT, routed_to TEXT,
-        device_fp TEXT, has_photo INTEGER, has_audio INTEGER
-    )""")
+    con = get_conn()
+    cur = con.cursor()
+    cur.execute(SCHEMA)
     con.commit()
+    cur.close()
     con.close()
 
 
@@ -85,11 +109,12 @@ def score_spam(description, device_fp):
 def find_duplicates(con, category, lat, lng):
     if lat is None or lng is None:
         return 0
-    cur = con.execute(
-        """SELECT COUNT(*) FROM reports WHERE category=? AND
-           ts > datetime('now', '-15 minutes') AND
-           lat BETWEEN ? AND ? AND lng BETWEEN ? AND ?""",
-        (category, lat - 0.01, lat + 0.01, lng - 0.01, lng + 0.01),
+    cutoff = (datetime.now(timezone.utc) - timedelta(minutes=15)).isoformat()
+    cur = con.cursor()
+    cur.execute(
+        f"""SELECT COUNT(*) FROM reports WHERE category={PH} AND ts > {PH}
+            AND lat BETWEEN {PH} AND {PH} AND lng BETWEEN {PH} AND {PH}""",
+        (category, cutoff, lat - 0.01, lat + 0.01, lng - 0.01, lng + 0.01),
     )
     return cur.fetchone()[0]
 
@@ -110,7 +135,8 @@ def handle_incoming_report(payload):
     lat, lng = (coords + [None, None])[:2]
     device_fp = payload.get("device_fp", "unknown")
 
-    con = sqlite3.connect(DB_PATH)
+    con = get_conn()
+    cur = con.cursor()
     urgency = score_urgency(description, tags)
     spam = score_spam(description, device_fp)
     dup_count = find_duplicates(con, category, lat, lng)
@@ -118,8 +144,8 @@ def handle_incoming_report(payload):
         spam = max(0, spam - 0.2)  # corroborated reports are less likely spam
 
     ref = str(payload.get("ref", ""))
-    if not re.fullmatch(r"RPT-[A-Z0-9]{6}", ref) or con.execute(
-            "SELECT 1 FROM reports WHERE ref=?", (ref,)).fetchone():
+    cur.execute(f"SELECT 1 FROM reports WHERE ref={PH}", (ref,))
+    if not re.fullmatch(r"RPT-[A-Z0-9]{6}", ref) or cur.fetchone():
         ref = gen_ref()
     route = routing[category]
     routed_names = [route["primary"]["name"]] + [s["name"] for s in route.get("secondary", [])]
@@ -131,14 +157,15 @@ def handle_incoming_report(payload):
     else:
         status = "dispatched"
 
-    con.execute(
-        """INSERT INTO reports VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+    cur.execute(
+        f"""INSERT INTO reports VALUES ({','.join([PH]*15)})""",
         (ref, datetime.now(timezone.utc).isoformat(), category, description,
          json.dumps(tags), payload.get("location_text"), lat, lng,
          urgency, spam, status, json.dumps(routed_names), device_fp,
          int(bool(payload.get("photo"))), int(bool(payload.get("audio")))),
     )
     con.commit()
+    cur.close()
     con.close()
 
     return {
@@ -176,10 +203,12 @@ class Handler(BaseHTTPRequestHandler):
 
         if self.path.startswith("/api/report/"):
             ref = self.path.rsplit("/", 1)[-1]
-            con = sqlite3.connect(DB_PATH)
-            row = con.execute(
-                "SELECT ref, ts, category, status, urgency FROM reports WHERE ref=?", (ref,)
-            ).fetchone()
+            con = get_conn()
+            cur = con.cursor()
+            cur.execute(
+                f"SELECT ref, ts, category, status, urgency FROM reports WHERE ref={PH}", (ref,)
+            )
+            row = cur.fetchone()
             con.close()
             if not row:
                 return self._json(404, {"error": "not found"})
@@ -189,12 +218,14 @@ class Handler(BaseHTTPRequestHandler):
         if self.path.startswith("/api/reports"):
             if self.headers.get("X-Token") != DASH_TOKEN:
                 return self._json(401, {"error": "unauthorized"})
-            con = sqlite3.connect(DB_PATH)
-            rows = con.execute(
+            con = get_conn()
+            cur = con.cursor()
+            cur.execute(
                 """SELECT ref, ts, category, description, tags, location_text,
                           urgency, status, routed_to FROM reports
                    WHERE status != 'rejected_spam' ORDER BY ts DESC LIMIT 100"""
-            ).fetchall()
+            )
+            rows = cur.fetchall()
             con.close()
             keys = ["ref", "ts", "category", "description", "tags",
                     "location_text", "urgency", "status", "routed_to"]
