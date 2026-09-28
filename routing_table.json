@@ -1,0 +1,37 @@
+{
+  "fire": {
+    "primary": { "id": "agency:fire-service", "name": "State Fire Service" },
+    "secondary": [{ "id": "agency:sema", "name": "State Emergency Management Agency" }],
+    "exclude": []
+  },
+  "accident": {
+    "primary": { "id": "agency:ambulance", "name": "Emergency ambulance / 112" },
+    "secondary": [{ "id": "agency:civil-defence", "name": "Civil Defence" }],
+    "exclude": []
+  },
+  "abuse": {
+    "primary": { "id": "agency:dsvrt", "name": "State Domestic & Sexual Violence Response Team" },
+    "secondary": [{ "id": "ngo:legal-aid", "name": "Partner legal-aid NGO" }],
+    "exclude": ["agency:police"]
+  },
+  "kidnap": {
+    "primary": { "id": "agency:police", "name": "Nigeria Police (nearest division)" },
+    "secondary": [{ "id": "agency:security-trust-fund", "name": "State Security Trust Fund" }],
+    "exclude": []
+  },
+  "robbery": {
+    "primary": { "id": "agency:police", "name": "Nigeria Police (nearest division)" },
+    "secondary": [],
+    "exclude": []
+  },
+  "rights": {
+    "primary": { "id": "ngo:human-rights-desk", "name": "Independent human-rights desk" },
+    "secondary": [],
+    "exclude": ["agency:police"]
+  },
+  "other": {
+    "primary": { "id": "team:human-review", "name": "Human triage reviewer" },
+    "secondary": [],
+    "exclude": []
+  }
+}
