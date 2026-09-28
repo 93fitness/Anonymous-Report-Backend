@@ -6,7 +6,7 @@ Deploy:   works on any host that can run `python3 server.py` (Render, Railway,
           Fly.io, a plain VPS with systemd). See README.md.
 """
 
-import json, sqlite3, random, string, time, os
+import json, sqlite3, random, string, time, os, re
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from datetime import datetime, timezone
 
@@ -117,7 +117,10 @@ def handle_incoming_report(payload):
     if dup_count > 0:
         spam = max(0, spam - 0.2)  # corroborated reports are less likely spam
 
-    ref = gen_ref()
+    ref = str(payload.get("ref", ""))
+    if not re.fullmatch(r"RPT-[A-Z0-9]{6}", ref) or con.execute(
+            "SELECT 1 FROM reports WHERE ref=?", (ref,)).fetchone():
+        ref = gen_ref()
     route = routing[category]
     routed_names = [route["primary"]["name"]] + [s["name"] for s in route.get("secondary", [])]
 
