@@ -33,6 +33,7 @@ h1{font-size:22px;font-weight:600;margin:0 0 4px}
 .ractions{display:flex;flex-direction:column;gap:6px}
 .ract{border:1px solid var(--line);background:var(--paper);color:var(--ink);padding:7px 12px;border-radius:6px;font-size:12.5px;cursor:pointer;font-family:inherit;white-space:nowrap}
 .ract.done{background:#1F8A70;color:#fff;border-color:#1F8A70}
+.media-btn{border:1px solid var(--line);background:var(--paper);color:var(--ink);padding:7px 12px;border-radius:6px;font-size:12.5px;cursor:pointer;font-family:inherit;white-space:nowrap}
 .row.actioned{opacity:.55}
 </style>
 </head>
@@ -96,7 +97,9 @@ document.getElementById('loadBtn').addEventListener('click', async ()=>{
       loc: r.location_text || 'No location shared',
       time: new Date(r.ts).toLocaleString(),
       routed: r.routed_to.join(', ') || 'Pending',
-      actioned: r.status === 'acknowledged' || r.status === 'dispatched'
+      actioned: r.status === 'acknowledged' || r.status === 'dispatched',
+      hasPhoto: !!r.has_photo,
+      hasAudio: !!r.has_audio
     }));
     isLive = true; currentToken = token;
     banner.textContent = `Showing live reports from ${API_BASE}.`;
@@ -115,12 +118,17 @@ function render(){
     .forEach(r=>{
       const row = document.createElement('div');
       row.className = 'row' + (r.actioned ? ' actioned' : '');
+      const descText = r.desc && r.desc.trim() ? r.desc : '<span style="color:var(--muted)">(no text — see media below)</span>';
       row.innerHTML = `
         <div class="urg ${r.urgency}"></div>
         <div>
           <div class="rtop"><span class="rref">${r.ref}</span><span class="rcat">${r.category}</span></div>
-          <div class="rdesc">${r.desc}</div>
+          <div class="rdesc">${descText}</div>
           <div class="rmeta">${r.loc} · ${r.time} · routed to ${r.routed}</div>
+          ${(r.hasAudio || r.hasPhoto) ? `<div class="media-row" data-ref="${r.ref}" style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
+            ${r.hasAudio ? `<button class="media-btn" data-ref="${r.ref}" data-kind="audio">Play voice note</button>` : ''}
+            ${r.hasPhoto ? `<button class="media-btn" data-ref="${r.ref}" data-kind="photo">View photo</button>` : ''}
+          </div>` : ''}
         </div>
         <div class="ractions">
           <button class="ract ${r.actioned?'done':''}" data-ref="${r.ref}">${r.actioned ? 'Acknowledged' : 'Acknowledge'}</button>
@@ -128,6 +136,28 @@ function render(){
         </div>`;
       listEl.appendChild(row);
     });
+  listEl.querySelectorAll('.media-btn').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const ref = btn.dataset.ref, kind = btn.dataset.kind;
+      btn.disabled = true; btn.textContent = 'Loading…';
+      try{
+        const res = await fetch(`${API_BASE}/api/report/${ref}/media/${kind}`, { headers: { 'X-Token': currentToken } });
+        if(!res.ok) throw new Error('request failed: ' + res.status);
+        const { data } = await res.json();
+        const holder = btn.closest('.media-row');
+        const el = document.createElement(kind === 'audio' ? 'audio' : 'img');
+        el.src = data;
+        if(kind === 'audio') el.controls = true;
+        else { el.style.maxWidth = '220px'; el.style.borderRadius = '8px'; el.style.display='block'; el.style.marginTop='8px'; }
+        holder.appendChild(el);
+        btn.remove();
+      }catch(err){
+        btn.textContent = "Couldn't load";
+        alert(`Couldn't load this ${kind} (${err.message}).`);
+      }
+    });
+  });
+
   listEl.querySelectorAll('.ract').forEach(btn=>{
     btn.addEventListener('click', async ()=>{
       const item = DATA.find(x=>x.ref===btn.dataset.ref);

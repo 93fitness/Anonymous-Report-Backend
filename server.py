@@ -23,8 +23,16 @@ SCHEMA = """CREATE TABLE IF NOT EXISTS reports(
     ref TEXT PRIMARY KEY, ts TEXT, category TEXT, description TEXT,
     tags TEXT, location_text TEXT, lat REAL, lng REAL,
     urgency TEXT, spam_score REAL, status TEXT, routed_to TEXT,
-    device_fp TEXT, has_photo INTEGER, has_audio INTEGER
+    device_fp TEXT, has_photo INTEGER, has_audio INTEGER,
+    photo_data TEXT, audio_data TEXT
 )"""
+# Older deployments already have a `reports` table without the last two
+# columns -- CREATE TABLE IF NOT EXISTS won't add them, so this patches
+# an existing table up to the current schema without losing data.
+MIGRATIONS = [
+    "ALTER TABLE reports ADD COLUMN photo_data TEXT",
+    "ALTER TABLE reports ADD COLUMN audio_data TEXT",
+]
 
 URGENCY_KEYWORDS = {
     "high": ["now", "right now", "ongoing", "trapped", "weapon", "gun", "knife",
@@ -64,6 +72,12 @@ def init_db():
     cur = con.cursor()
     cur.execute(SCHEMA)
     con.commit()
+    for stmt in MIGRATIONS:
+        try:
+            cur.execute(stmt)
+            con.commit()
+        except Exception:
+            con.rollback()  # column already exists -- fine, nothing to do
     cur.close()
     con.close()
 
@@ -158,11 +172,12 @@ def handle_incoming_report(payload):
         status = "dispatched"
 
     cur.execute(
-        f"""INSERT INTO reports VALUES ({','.join([PH]*15)})""",
+        f"""INSERT INTO reports VALUES ({','.join([PH]*17)})""",
         (ref, datetime.now(timezone.utc).isoformat(), category, description,
          json.dumps(tags), payload.get("location_text"), lat, lng,
          urgency, spam, status, json.dumps(routed_names), device_fp,
-         int(bool(payload.get("photo"))), int(bool(payload.get("audio")))),
+         int(bool(payload.get("photo"))), int(bool(payload.get("audio"))),
+         payload.get("photo"), payload.get("audio")),
     )
     con.commit()
     cur.close()
@@ -201,6 +216,23 @@ class Handler(BaseHTTPRequestHandler):
         if self.path == "/health":
             return self._json(200, {"ok": True})
 
+        if "/media/" in self.path and self.path.startswith("/api/report/"):
+            if self.headers.get("X-Token") != DASH_TOKEN:
+                return self._json(401, {"error": "unauthorized"})
+            parts = self.path.split("/")  # ["", "api", "report", "<ref>", "media", "<kind>"]
+            ref, kind = parts[3], parts[5]
+            col = "photo_data" if kind == "photo" else "audio_data" if kind == "audio" else None
+            if not col:
+                return self._json(400, {"error": "kind must be 'photo' or 'audio'"})
+            con = get_conn()
+            cur = con.cursor()
+            cur.execute(f"SELECT {col} FROM reports WHERE ref={PH}", (ref,))
+            row = cur.fetchone()
+            con.close()
+            if not row or not row[0]:
+                return self._json(404, {"error": "no " + kind + " on this report"})
+            return self._json(200, {"data": row[0]})
+
         if self.path.startswith("/api/report/"):
             ref = self.path.rsplit("/", 1)[-1]
             con = get_conn()
@@ -222,13 +254,13 @@ class Handler(BaseHTTPRequestHandler):
             cur = con.cursor()
             cur.execute(
                 """SELECT ref, ts, category, description, tags, location_text,
-                          urgency, status, routed_to FROM reports
+                          urgency, status, routed_to, has_photo, has_audio FROM reports
                    WHERE status != 'rejected_spam' ORDER BY ts DESC LIMIT 100"""
             )
             rows = cur.fetchall()
             con.close()
             keys = ["ref", "ts", "category", "description", "tags",
-                    "location_text", "urgency", "status", "routed_to"]
+                    "location_text", "urgency", "status", "routed_to", "has_photo", "has_audio"]
             out = []
             for r in rows:
                 item = dict(zip(keys, r))
