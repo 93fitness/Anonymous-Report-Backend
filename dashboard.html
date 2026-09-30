@@ -96,7 +96,9 @@ document.getElementById('loadBtn').addEventListener('click', async ()=>{
       desc: r.description,
       loc: r.location_text || 'No location shared',
       time: new Date(r.ts).toLocaleString(),
-      routed: r.routed_to.join(', ') || 'Pending',
+      routed: (r.routed_to && r.routed_to.length)
+        ? r.routed_to.map(c => c.phone ? `${c.name} <a href="tel:${c.phone}" style="color:#1F8A70">${c.phone}</a>` : c.name).join(', ')
+        : 'Pending',
       actioned: r.status === 'acknowledged' || r.status === 'dispatched',
       hasPhoto: !!r.has_photo,
       hasAudio: !!r.has_audio

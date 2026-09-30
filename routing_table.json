@@ -1,36 +1,39 @@
 {
   "fire": {
-    "primary": { "id": "agency:fire-service", "name": "State Fire Service" },
-    "secondary": [{ "id": "agency:sema", "name": "State Emergency Management Agency" }],
+    "primary": { "id": "agency:emergency-112", "name": "Nigeria Emergency Line (112)", "phone": "112", "address": "Nationwide toll-free -- routes to Police/Fire/Ambulance/FRSC/NEMA" },
+    "secondary": [{ "id": "agency:lagos-fire", "name": "Lagos State Fire Service", "phone": "08033235892", "address": "Lagos State" }],
     "exclude": []
   },
   "accident": {
-    "primary": { "id": "agency:ambulance", "name": "Emergency ambulance / 112" },
-    "secondary": [{ "id": "agency:civil-defence", "name": "Civil Defence" }],
+    "primary": { "id": "agency:emergency-112", "name": "Nigeria Emergency Line (112)", "phone": "112", "address": "Nationwide toll-free" },
+    "secondary": [{ "id": "agency:frsc", "name": "Federal Road Safety Corps (FRSC)", "phone": "122", "address": "Nationwide toll-free" }],
     "exclude": []
   },
   "abuse": {
-    "primary": { "id": "agency:dsvrt", "name": "State Domestic & Sexual Violence Response Team" },
-    "secondary": [{ "id": "ngo:legal-aid", "name": "Partner legal-aid NGO" }],
+    "primary": { "id": "agency:dsvrt", "name": "Lagos DSVRT (Domestic & Sexual Violence Response Team)", "phone": "08137960048", "address": "Ministry of Justice, Alausa, Ikeja, Lagos" },
+    "secondary": [
+      { "id": "ngo:warif", "name": "WARIF", "phone": "+2348092100009", "address": "6 Turton Street, Sabo, Yaba, Lagos" },
+      { "id": "agency:naptip-lagos", "name": "NAPTIP Lagos Zonal Command", "phone": "08034515357", "address": "165 Oba Ladejobi Street, GRA, Ikeja, Lagos" }
+    ],
     "exclude": ["agency:police"]
   },
   "kidnap": {
-    "primary": { "id": "agency:police", "name": "Nigeria Police (nearest division)" },
-    "secondary": [{ "id": "agency:security-trust-fund", "name": "State Security Trust Fund" }],
+    "primary": { "id": "agency:emergency-112", "name": "Nigeria Police via Emergency Line (112)", "phone": "112", "address": "Nationwide toll-free" },
+    "secondary": [],
     "exclude": []
   },
   "robbery": {
-    "primary": { "id": "agency:police", "name": "Nigeria Police (nearest division)" },
+    "primary": { "id": "agency:emergency-112", "name": "Nigeria Police via Emergency Line (112)", "phone": "112", "address": "Nationwide toll-free" },
     "secondary": [],
     "exclude": []
   },
   "rights": {
-    "primary": { "id": "ngo:human-rights-desk", "name": "Independent human-rights desk" },
+    "primary": { "id": "ngo:nhrc-lagos", "name": "National Human Rights Commission -- Lagos Zonal Office", "phone": "08081581920", "address": "17 Balogun Street, Alausa, Ikeja, Lagos" },
     "secondary": [],
     "exclude": ["agency:police"]
   },
   "other": {
-    "primary": { "id": "team:human-review", "name": "Human triage reviewer" },
+    "primary": { "id": "team:human-review", "name": "Human triage reviewer", "phone": null, "address": null },
     "secondary": [],
     "exclude": []
   }

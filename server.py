@@ -172,7 +172,8 @@ def handle_incoming_report(payload):
     if not re.fullmatch(r"RPT-[A-Z0-9]{6}", ref) or cur.fetchone():
         ref = gen_ref()
     route = routing[category]
-    routed_names = [route["primary"]["name"]] + [s["name"] for s in route.get("secondary", [])]
+    routed_contacts = [route["primary"]] + route.get("secondary", [])
+    routed_names = [c["name"] for c in routed_contacts]
 
     if spam >= 0.6:
         status = "rejected_spam"
@@ -185,7 +186,7 @@ def handle_incoming_report(payload):
         f"""INSERT INTO reports VALUES ({','.join([PH]*17)})""",
         (ref, datetime.now(timezone.utc).isoformat(), category, description,
          json.dumps(tags), payload.get("location_text"), lat, lng,
-         urgency, spam, status, json.dumps(routed_names), device_fp,
+         urgency, spam, status, json.dumps(routed_contacts), device_fp,
          int(bool(payload.get("photo"))), int(bool(payload.get("audio"))),
          payload.get("photo"), payload.get("audio")),
     )
