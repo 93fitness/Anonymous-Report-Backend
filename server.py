@@ -35,9 +35,19 @@ MIGRATIONS = [
 ]
 
 URGENCY_KEYWORDS = {
-    "high": ["now", "right now", "ongoing", "trapped", "weapon", "gun", "knife",
-              "bleeding", "unconscious", "fire", "burning", "smoke", "child", "help me"],
-    "medium": ["injured", "shouting", "fighting", "blocked", "stuck", "crying", "spreading"],
+    # Deliberately excludes very generic words like "wahala" -- it's used as
+    # often in "no wahala" (no problem) as in a real emergency, so it would
+    # cause false positives rather than help. These lists need real tuning
+    # against actual pilot reports -- treat this as a starting point.
+    "high": ["now", "right now", "ongoing", "trapped", "weapon", "gun", "knife", "gunshot",
+             "gun shot", "bleeding", "blood dey comot", "unconscious", "fire", "burning",
+             "smoke", "fire don katch", "fire dey burn", "child", "help me", "help me o",
+             "abeg help", "abeg come quick", "dem dey kill", "one chance", "armed robbers",
+             "beat am well well", "im dey die", "cannot breathe", "can't breathe"],
+    "medium": ["injured", "shouting", "fighting", "blocked", "stuck", "crying", "spreading",
+               "quick quick", "sharp sharp", "motor crash", "accident happen",
+               "smoke everywhere", "uniform man", "oga dey collect", "dem dey harass",
+               "bribe", "dem dey beat"],
 }
 NIGHT_HOURS = set(range(22, 24)) | set(range(0, 6))
 
