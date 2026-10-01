@@ -6,7 +6,8 @@ Deploy:   works on any host that can run `python3 server.py` (Render, Railway,
           Fly.io, a plain VPS with systemd). See README.md.
 """
 
-import json, sqlite3, random, string, time, os, re
+import json, sqlite3, random, string, time, os, re, threading, smtplib
+from email.mime.text import MIMEText
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from datetime import datetime, timezone, timedelta
 
@@ -18,6 +19,15 @@ PH = "%s" if USE_PG else "?"  # SQL placeholder style differs between the two dr
 DASH_TOKEN = os.environ.get("DASH_TOKEN", "demo-token-change-me")
 ROUTING_PATH = os.environ.get("ROUTING_PATH", "routing_table.json")
 PORT = int(os.environ.get("PORT", 8080))
+
+# Email notifications -- optional. If SMTP_HOST isn't set, this feature simply
+# does nothing and every report still works exactly as before.
+SMTP_HOST = os.environ.get("SMTP_HOST")
+SMTP_PORT = int(os.environ.get("SMTP_PORT", "587"))
+SMTP_USER = os.environ.get("SMTP_USER")
+SMTP_PASS = os.environ.get("SMTP_PASS")
+SMTP_FROM = os.environ.get("SMTP_FROM", SMTP_USER)
+DASHBOARD_URL = os.environ.get("DASHBOARD_URL", "")  # e.g. https://your-app.onrender.com/dashboard
 
 SCHEMA = """CREATE TABLE IF NOT EXISTS reports(
     ref TEXT PRIMARY KEY, ts TEXT, category TEXT, description TEXT,
@@ -75,6 +85,38 @@ def get_conn():
 def load_routing():
     with open(ROUTING_PATH) as f:
         return json.load(f)
+
+
+def send_notification(contact, ref, category, urgency, description, location_text):
+    """Best-effort email to one routed contact. Does nothing if SMTP isn't
+    configured, or if this particular contact has no email set -- callers
+    don't need to check either condition first."""
+    if not (SMTP_HOST and SMTP_USER and SMTP_PASS and contact.get("email")):
+        return
+    try:
+        lines = [
+            f"A new report has been routed to {contact['name']}.",
+            "",
+            f"Reference: {ref}",
+            f"Category: {category}",
+            f"Urgency: {urgency}",
+            f"Description: {description or '(voice note or photo only -- see dashboard)'}",
+        ]
+        if location_text:
+            lines.append(f"Location: {location_text}")
+        if DASHBOARD_URL:
+            lines.append("")
+            lines.append(f"View full details, photo, or voice note: {DASHBOARD_URL}")
+        msg = MIMEText("\n".join(lines))
+        msg["Subject"] = f"[Incident report] {category} -- {ref} ({urgency} urgency)"
+        msg["From"] = SMTP_FROM
+        msg["To"] = contact["email"]
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=10) as server:
+            server.starttls()
+            server.login(SMTP_USER, SMTP_PASS)
+            server.sendmail(SMTP_FROM, [contact["email"]], msg.as_string())
+    except Exception as e:
+        print(f"[notify] failed to email {contact.get('name')}: {e}")  # never raises -- best effort only
 
 
 def init_db():
@@ -193,6 +235,14 @@ def handle_incoming_report(payload):
     con.commit()
     cur.close()
     con.close()
+
+    if status == "dispatched":
+        for contact in routed_contacts:
+            threading.Thread(
+                target=send_notification,
+                args=(contact, ref, category, urgency, description, payload.get("location_text")),
+                daemon=True,
+            ).start()
 
     return {
         "ref": ref,

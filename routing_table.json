@@ -1,39 +1,113 @@
 {
   "fire": {
-    "primary": { "id": "agency:emergency-112", "name": "Nigeria Emergency Line (112)", "phone": "112", "address": "Nationwide toll-free -- routes to Police/Fire/Ambulance/FRSC/NEMA" },
-    "secondary": [{ "id": "agency:lagos-fire", "name": "Lagos State Fire Service", "phone": "08033235892", "address": "Lagos State" }],
+    "primary": {
+      "id": "agency:emergency-112",
+      "name": "Nigeria Emergency Line (112)",
+      "phone": "112",
+      "address": "Nationwide toll-free -- routes to Police/Fire/Ambulance/FRSC/NEMA",
+      "email": null
+    },
+    "secondary": [
+      {
+        "id": "agency:lagos-fire",
+        "name": "Lagos State Fire Service",
+        "phone": "08033235892",
+        "address": "Lagos State",
+        "email": null
+      }
+    ],
     "exclude": []
   },
   "accident": {
-    "primary": { "id": "agency:emergency-112", "name": "Nigeria Emergency Line (112)", "phone": "112", "address": "Nationwide toll-free" },
-    "secondary": [{ "id": "agency:frsc", "name": "Federal Road Safety Corps (FRSC)", "phone": "122", "address": "Nationwide toll-free" }],
+    "primary": {
+      "id": "agency:emergency-112",
+      "name": "Nigeria Emergency Line (112)",
+      "phone": "112",
+      "address": "Nationwide toll-free",
+      "email": null
+    },
+    "secondary": [
+      {
+        "id": "agency:frsc",
+        "name": "Federal Road Safety Corps (FRSC)",
+        "phone": "122",
+        "address": "Nationwide toll-free",
+        "email": null
+      }
+    ],
     "exclude": []
   },
   "abuse": {
-    "primary": { "id": "agency:dsvrt", "name": "Lagos DSVRT (Domestic & Sexual Violence Response Team)", "phone": "08137960048", "address": "Ministry of Justice, Alausa, Ikeja, Lagos" },
+    "primary": {
+      "id": "agency:dsvrt",
+      "name": "Lagos DSVRT (Domestic & Sexual Violence Response Team)",
+      "phone": "08137960048",
+      "address": "Ministry of Justice, Alausa, Ikeja, Lagos",
+      "email": null
+    },
     "secondary": [
-      { "id": "ngo:warif", "name": "WARIF", "phone": "+2348092100009", "address": "6 Turton Street, Sabo, Yaba, Lagos" },
-      { "id": "agency:naptip-lagos", "name": "NAPTIP Lagos Zonal Command", "phone": "08034515357", "address": "165 Oba Ladejobi Street, GRA, Ikeja, Lagos" }
+      {
+        "id": "ngo:warif",
+        "name": "WARIF",
+        "phone": "+2348092100009",
+        "address": "6 Turton Street, Sabo, Yaba, Lagos",
+        "email": null
+      },
+      {
+        "id": "agency:naptip-lagos",
+        "name": "NAPTIP Lagos Zonal Command",
+        "phone": "08034515357",
+        "address": "165 Oba Ladejobi Street, GRA, Ikeja, Lagos",
+        "email": null
+      }
     ],
-    "exclude": ["agency:police"]
+    "exclude": [
+      "agency:police"
+    ]
   },
   "kidnap": {
-    "primary": { "id": "agency:emergency-112", "name": "Nigeria Police via Emergency Line (112)", "phone": "112", "address": "Nationwide toll-free" },
+    "primary": {
+      "id": "agency:emergency-112",
+      "name": "Nigeria Police via Emergency Line (112)",
+      "phone": "112",
+      "address": "Nationwide toll-free",
+      "email": null
+    },
     "secondary": [],
     "exclude": []
   },
   "robbery": {
-    "primary": { "id": "agency:emergency-112", "name": "Nigeria Police via Emergency Line (112)", "phone": "112", "address": "Nationwide toll-free" },
+    "primary": {
+      "id": "agency:emergency-112",
+      "name": "Nigeria Police via Emergency Line (112)",
+      "phone": "112",
+      "address": "Nationwide toll-free",
+      "email": null
+    },
     "secondary": [],
     "exclude": []
   },
   "rights": {
-    "primary": { "id": "ngo:nhrc-lagos", "name": "National Human Rights Commission -- Lagos Zonal Office", "phone": "08081581920", "address": "17 Balogun Street, Alausa, Ikeja, Lagos" },
+    "primary": {
+      "id": "ngo:nhrc-lagos",
+      "name": "National Human Rights Commission -- Lagos Zonal Office",
+      "phone": "08081581920",
+      "address": "17 Balogun Street, Alausa, Ikeja, Lagos",
+      "email": null
+    },
     "secondary": [],
-    "exclude": ["agency:police"]
+    "exclude": [
+      "agency:police"
+    ]
   },
   "other": {
-    "primary": { "id": "team:human-review", "name": "Human triage reviewer", "phone": null, "address": null },
+    "primary": {
+      "id": "team:human-review",
+      "name": "Human triage reviewer",
+      "phone": null,
+      "address": null,
+      "email": null
+    },
     "secondary": [],
     "exclude": []
   }
